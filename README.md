@@ -53,6 +53,8 @@
 ![image](learning9.png)
 ![image](learning27.png)
 
+![rolleragent](rolleragent.gif)
+
 Вывод: увеличение количества копий модели, выполняющих действие одновременно, помогает сделать обучение быстрее. Также было замечено, что изменение Mean Reward и Std of Reward может быть неравномерным, с временным ухудшением показателей. Возможно, для минимизации такого отклонения нужно отрегулировать параметры конфигурации нейронной сети.
 
 ## Задание 2
@@ -98,8 +100,105 @@ Proximal Policy Optimization (PPO) - один из относительно не
 ## Задание 3
 Доработайте сцену и обучите ML-Agent таким образом, чтобы шар перемещался между двумя кубами разного цвета. Кубы должны, как и в первом задании, случайно изменять координаты на плоскости. 
 
+Ход работы:
+
+- Изменить c# скрипт
+```c#
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using Unity.MLAgents;
+using Unity.MLAgents.Sensors;
+using Unity.MLAgents.Actuators;
+
+public class RollerAgent : Agent
+{
+    Rigidbody rBody;
+    // Start is called before the first frame update
+    void Start()
+    {
+        rBody = GetComponent<Rigidbody>();
+    }
+
+    public GameObject Target;
+    public GameObject Target1;
+    private bool touch_target;
+    private bool touch_target1;
+
+    public override void OnEpisodeBegin()
+    {
+        if (this.transform.localPosition.y < 0)
+        {
+            this.rBody.angularVelocity = Vector3.zero;
+            this.rBody.velocity = Vector3.zero;
+            this.transform.localPosition = new Vector3(0, 0.5f, 0);
+        }
+
+        Target.transform.localPosition = new Vector3(Random.value * 8-4, 0.5f, Random.value * 8-4);
+        Target1.transform.localPosition = new Vector3(Random.value * 8-4, 0.5f, Random.value * 8-4);
+        Target.SetActive(true);
+        Target1.SetActive(true);
+        touch_target = false;
+        touch_target1 = false;
+    }
+    public override void CollectObservations(VectorSensor sensor)
+    {
+        sensor.AddObservation(Target.transform.localPosition);
+        sensor.AddObservation(Target1.transform.localPosition);
+        sensor.AddObservation(this.transform.localPosition);
+        sensor.AddObservation(touch_target);
+        sensor.AddObservation(touch_target1);
+        sensor.AddObservation(rBody.velocity.x);
+        sensor.AddObservation(rBody.velocity.z);
+    }
+
+    public float forceMultiplier = 10;
+    public override void OnActionReceived(ActionBuffers actionBuffers)
+
+    {
+        Vector3 controlSignal = Vector3.zero;
+        controlSignal.x = actionBuffers.ContinuousActions[0];
+        controlSignal.z = actionBuffers.ContinuousActions[1];
+        rBody.AddForce(controlSignal * forceMultiplier);
+
+        float distanceToTarget = Vector3.Distance(this.transform.localPosition, Target.transform.localPosition);
+        float distanceToTarget1 = Vector3.Distance(this.transform.localPosition, Target1.transform.localPosition);
+
+        if (!touch_target & distanceToTarget < 1.42f)
+        {
+            touch_target = true;
+            Target.SetActive(false);
+        }
+
+        if (!touch_target1 & distanceToTarget1 < 1.42f)
+        {
+            touch_target1 = true;
+            Target1.SetActive(false);
+
+        }
+
+        if (touch_target & touch_target1)
+        {
+            SetReward(1.0f);
+            EndEpisode();
+        }
+
+        else if (this.transform.localPosition.y < 0)
+        {
+            SetReward(-0.5f);
+            EndEpisode();
+        }
+    }
+}
+```
+- Обучить ML агент
+![image](learning_between_two.png)
+Результат:
+![rolling-between-two](rolling-between-two.gif)
+
 ## Выводы
-Игровой баланс - соблюдение равновесия между различными экономическими показателями в игре, чтобы игровой процесс захватывал игрока и был интересен. Как мы увидели в данной лабораторной, ML агенты могут быть использованы для выбора стратегии в ситуациях, когда переменных слишком много, чтобы оптимизировать алгоритм вручную. Таким образом, мы можем использовать глубокое обучение для создания интеллектуальных агентов с оптимальной сложностью прохождения для игрока или подбора коэффициентов в экономической системе со множеством параметров.
+  В ходе выполонения Лабораторной работы я ознакомилась с базовым синтаксисом C#, классами, используемыми в скриптинге Unity, а также основами использования ML агента для оптимизации траектории движения интеллектуального агента.
+  Как мы увидели в Лабораторной, ML агенты могут быть использованы для выбора стратегии в ситуациях, когда переменных слишком много, чтобы оптимизировать алгоритм вручную. Решение подобных задач может быть важно для рассчета игрового баланса. Игровой баланс - соблюдение равновесия между различными экономическими показателями в игре, чтобы игровой процесс захватывал игрока и был интересен. Таким образом, мы можем использовать глубокое обучение для создания интеллектуальных агентов с оптимальной сложностью прохождения для игрока или подбора коэффициентов в экономической системе со множеством параметров.
 
 | Plugin | README |
 | ------ | ------ |
